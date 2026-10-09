@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Online Examination System</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 25px;
+            font-family: Arial, sans-serif;
+            background: #eef3f9;
+            color: #243047;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: auto;
+        }
+
+        h1 {
+            color: #174ea6;
+            text-align: center;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #555;
+        }
+
+        .card {
+            background: white;
+            padding: 22px;
+            margin-top: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px #00000012;
+        }
+
+        .summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 15px;
+        }
+
+        .stat {
+            padding: 18px;
+            background: #e8f0fe;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat h2 {
+            color: #174ea6;
+            margin: 8px 0;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 18px;
+        }
+
+        input, button {
+            padding: 11px 14px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            font-size: 14px;
+        }
+
+        input {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        button {
+            border: none;
+            background: #1769e0;
+            color: white;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #0d47a1;
+        }
+
+        .back {
+            display: inline-block;
+            margin-top: 20px;
+            color: #174ea6;
+            text-decoration: none;
+        }
+
+        .table-wrap {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 850px;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        th {
+            background: #174ea6;
+            color: white;
+        }
+
+        tr:hover {
+            background: #f5f8ff;
+        }
+
+        #message {
+            margin: 12px 0;
+            color: #b42318;
+        }
+
+        @media print {
+            button, input, .back {
+                display: none;
+            }
+
+            body {
+                background: white;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+
+    <h1>Online Examination System</h1>
+    <p class="subtitle">Admin Dashboard — Student Exam Results</p>
+
+    <div class="card summary">
+        <div class="stat">
+            <p>Total Attempts</p>
+            <h2 id="total">0</h2>
+        </div>
+        <div class="stat">
+            <p>Average Score</p>
+            <h2 id="average">0%</h2>
+        </div>
+        <div class="stat">
+            <p>Passed (50% or above)</p>
+            <h2 id="passed">0</h2>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>Student Results</h2>
+
+        <div class="controls">
+            <input
+                type="text"
+                id="search"
+                placeholder="Search by student name or email"
+            >
+            <button onclick="loadResults()">Refresh Results</button>
+            <button onclick="window.print()">Print Results</button>
+        </div>
+
+        <p id="message">Loading results...</p>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Student Name</th>
+                    <th>Email</th>
+                    <th>Category</th>
+                    <th>Difficulty</th>
+                    <th>Score</th>
+                    <th>Percentage</th>
+                    <th>Time (sec)</th>
+                    <th>Submitted At</th>
+                </tr>
+                </thead>
+                <tbody id="resultsBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <a class="back" href="/index.html">← Back to Login</a>
+</div>
+
+<script>
+    let allResults = [];
+
+    async function loadResults() {
+        const message = document.getElementById("message");
+        message.textContent = "Loading results...";
+
+        try {
+            const response = await fetch("/api/results");
+
+            if (!response.ok) {
+                throw new Error("HTTP " + response.status);
+            }
+
+            allResults = await response.json();
+
+            if (!Array.isArray(allResults)) {
+                throw new Error("Unexpected response from server");
+            }
+
+            document.getElementById("total").textContent =
+                allResults.length;
+
+            const average = allResults.length
+                ? allResults.reduce(
+                    (sum, item) => sum + Number(item.percentage || 0), 0
+                ) / allResults.length
+                : 0;
+
+            document.getElementById("average").textContent =
+                average.toFixed(1) + "%";
+
+            document.getElementById("passed").textContent =
+                allResults.filter(
+                    item => Number(item.percentage || 0) >= 50
+                ).length;
+
+            message.textContent = allResults.length
+                ? ""
+                : "No exam results found.";
+
+            displayResults(allResults);
+
+        } catch (error) {
+            message.textContent =
+                "Could not load results. Check that the backend is running and the GET /api/results endpoint is available.";
+            console.error(error);
+        }
+    }
+
+    function displayResults(results) {
+        const tbody = document.getElementById("resultsBody");
+        tbody.replaceChildren();
+
+        results.forEach(item => {
+            const row = document.createElement("tr");
+
+            const values = [
+                item.id,
+                item.studentName,
+                item.studentEmail,
+                item.category,
+                item.difficulty,
+                (item.score ?? 0) + "/" + (item.totalQuestions ?? 0),
+                Number(item.percentage ?? 0).toFixed(1) + "%",
+                item.timeTakenSeconds ?? 0,
+                item.submittedAt
+                    ? new Date(item.submittedAt).toLocaleString()
+                    : "-"
+            ];
+
+            values.forEach(value => {
+                const cell = document.createElement("td");
+                cell.textContent = value ?? "-";
+                row.appendChild(cell);
+            });
+
+            tbody.appendChild(row);
+        });
+    }
+
+    document.getElementById("search").addEventListener("input", function () {
+        const term = this.value.toLowerCase();
+
+        const filtered = allResults.filter(item =>
+            String(item.studentName || "").toLowerCase().includes(term) ||
+            String(item.studentEmail || "").toLowerCase().includes(term)
+        );
+
+        displayResults(filtered);
+    });
+
+    loadResults();
+</script>
+</body>
+</html>
+```

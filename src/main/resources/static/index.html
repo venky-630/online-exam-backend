@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Online Examination System</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,sans-serif;background:linear-gradient(135deg,#dbeafe,#ede9fe);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.card{background:white;width:100%;max-width:500px;padding:30px;border-radius:16px;box-shadow:0 8px 28px #0002}
+h1{text-align:center;color:#3730a3}
+p{text-align:center;color:#555}
+label{display:block;margin:16px 0 7px;font-weight:bold}
+input,select{width:100%;padding:12px;border:1px solid #ccc;border-radius:8px;font-size:16px}
+button{width:100%;padding:13px;margin-top:22px;background:#4f46e5;color:white;border:0;border-radius:8px;font-size:16px;cursor:pointer}
+button:hover{background:#3730a3}
+#message{color:#dc2626}
+</style>
+</head>
+<body>
+<main class="card">
+<h1>Online Examination</h1>
+<p>Enter your details and select your exam.</p>
+<form id="loginForm">
+<label for="studentName">Student Name</label>
+<input id="studentName" type="text" placeholder="Enter your name" required>
+
+<label for="studentEmail">Email Address</label>
+<input id="studentEmail" type="email" placeholder="Enter your email" required>
+
+<label for="category">Select Subject</label>
+<select id="category" required>
+<option value="">-- Choose Subject --</option>
+<option value="Java">Java Programming</option>
+<option value="Python">Python Programming</option>
+<option value="GK">General Knowledge</option>
+<option value="Maths">Basic Mathematics</option>
+<option value="Reasoning">Aptitude & Logical Reasoning</option>
+</select>
+
+<label for="difficulty">Select Difficulty</label>
+<select id="difficulty" required>
+<option value="">-- Choose Difficulty --</option>
+<option value="Easy">Easy - 5 minutes</option>
+<option value="Medium">Medium - 10 minutes</option>
+<option value="Hard">Hard - 15 minutes</option>
+</select>
+
+<p id="message"></p>
+<button type="submit">Start Examination</button>
+</form>
+</main>
+<script>
+document.getElementById("loginForm").addEventListener("submit",function(e){
+ e.preventDefault();
+ const name=document.getElementById("studentName").value.trim();
+ const email=document.getElementById("studentEmail").value.trim();
+ const category=document.getElementById("category").value;
+ const difficulty=document.getElementById("difficulty").value;
+ if(!name||!email||!category||!difficulty){
+  document.getElementById("message").textContent="Please fill in all fields.";
+  return;
+ }
+ sessionStorage.setItem("studentName",name);
+ sessionStorage.setItem("studentEmail",email);
+ sessionStorage.setItem("selectedCategory",category);
+ sessionStorage.setItem("selectedDifficulty",difficulty);
+ window.location.href="/exam.html";
+});
+</script>
+</body>
+</html>

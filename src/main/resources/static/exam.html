@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Online Examination System</title>
+
+<style>
+* { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #f1f5f9;
+    color: #1e293b;
+}
+
+header {
+    background: #3730a3;
+    color: white;
+    padding: 18px 20px;
+}
+
+header h1 { margin: 0 0 12px; }
+
+.info {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.container {
+    max-width: 850px;
+    margin: 24px auto;
+    padding: 0 15px;
+}
+
+.question, .result {
+    background: white;
+    padding: 20px;
+    margin-bottom: 16px;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px #0001;
+}
+
+.question h3 { margin-top: 0; }
+
+.option {
+    display: block;
+    padding: 10px;
+    margin: 8px 0;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.option:hover { background: #eef2ff; }
+
+button {
+    padding: 12px 18px;
+    border: 0;
+    border-radius: 8px;
+    background: #4f46e5;
+    color: white;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+button:disabled { background: #94a3b8; }
+
+#result { display: none; }
+
+@media(max-width: 500px) {
+    .question, .result { padding: 15px; }
+}
+</style>
+</head>
+
+<body>
+
+<header>
+    <h1>Online Examination System</h1>
+    <div class="info">
+        <span id="studentInfo"></span>
+        <span id="examInfo"></span>
+        <span>Time left: <b id="timer">00:00</b></span>
+    </div>
+</header>
+
+<main class="container">
+
+    <div id="examArea">
+        <h2 id="examTitle">Examination</h2>
+        <p>20 questions · 1 mark per question</p>
+
+        <form id="examForm">
+            <div id="questions"></div>
+            <button type="submit" id="submitBtn">Submit Exam</button>
+        </form>
+    </div>
+
+    <section class="result" id="result">
+        <h2>Exam Result</h2>
+        <p id="resultName"></p>
+        <p id="resultCategory"></p>
+        <p id="resultDifficulty"></p>
+        <p id="resultScore"></p>
+        <p id="resultPercentage"></p>
+        <p id="resultTime"></p>
+        <p id="resultReason"></p>
+        <h3>Suggestions to improve</h3>
+        <p id="suggestion"></p>
+        <p id="saveStatus" role="status">Saving result...</p>
+        <button type="button" onclick="location.href='/index.html'">
+            Back to Login
+        </button>
+    </section>
+
+</main>
+
+<script>
+"use strict";
+
+const name = sessionStorage.getItem("studentName");
+const email = sessionStorage.getItem("studentEmail");
+const category = sessionStorage.getItem("selectedCategory");
+const difficulty = sessionStorage.getItem("selectedDifficulty");
+
+if (!name || !email || !category || !difficulty) {
+    alert("Please enter your details and choose an exam first.");
+    location.replace("/index.html");
+}
+
+const categoryNames = {
+    Java: "Java Programming",
+    Python: "Python Programming",
+    GK: "General Knowledge",
+    Maths: "Basic Mathematics",
+    Reasoning: "Aptitude & Logical Reasoning"
+};
+
+const limits = { Easy: 5, Medium: 10, Hard: 15 };
+const level = difficulty || "Easy";
+const mins = limits[level] || 5;
+const startTime = Date.now();
+
+let secondsLeft = mins * 60;
+let submitted = false;
+let timerInterval;
+let questions = [];
+
+document.getElementById("studentInfo").textContent =
+    "Student: " + (name || "");
+
+document.getElementById("examInfo").textContent =
+    (categoryNames[category] || category) + " | " + level;
+
+document.getElementById("examTitle").textContent =
+    (categoryNames[category] || category) + " - " + level + " Exam";
+
+function mcq(q, options, answer) {
+    return { q, options, answer };
+}
+
+function makeQuestion(q, a, b, c, d, answer) {
+    return mcq(q, [a, b, c, d], answer);
+}
+
+const banks = {
+
+Java: {
+Easy: [
+["Which keyword declares a class?", "class", "define", "struct", "object", 0],
+["Which method is the usual Java entry point?", "start()", "main()", "run()", "init()", 1],
+["Which is a primitive type?", "String", "ArrayList", "int", "Scanner", 2],
+["Which keyword creates an object?", "new", "this", "void", "static", 0],
+["Which symbol ends a Java statement?", ";", ":", ".", ",", 0],
+["Which operator checks equality for primitive values?", "=", "==", "!=", "=>", 1],
+["Which loop checks its condition before each iteration?", "while", "do-while only", "switch", "try", 0],
+["Which type stores true or false?", "char", "int", "boolean", "double", 2],
+["Which keyword returns a value from a method?", "break", "return", "continue", "import", 1],
+["Which keyword is used to make a constant variable?", "final", "fixed", "const", "static", 0]
+],
+Medium: [
+["Which concept lets a class inherit another class?", "Encapsulation", "Inheritance", "Compilation", "Casting", 1],
+["Which keyword refers to the current object?", "super", "this", "self", "current", 1],
+["Which access modifier allows access only within its class?", "public", "protected", "private", "default", 2],
+["Which keyword is used to implement an interface?", "extends", "implements", "interface", "inherits", 1],
+["Method overloading means?", "Same name, different parameter lists", "Same method only", "Subclass only", "Different class names", 0],
+["Which block usually executes whether an exception occurs or not?", "catch", "throw", "finally", "final", 2],
+["Which collection does not allow duplicate elements?", "List", "Set", "ArrayList", "Vector", 1],
+["Which keyword prevents a method from being overridden?", "static", "final", "private class", "native", 1],
+["Which type is the superclass of all Java classes?", "Main", "Object", "Class", "System", 1],
+["Which exception is unchecked?", "IOException", "SQLException", "NullPointerException", "FileNotFoundException", 2]
+],
+Hard: [
+["Which principle hides internal object state?", "Inheritance", "Encapsulation", "Overloading", "Casting", 1],
+["Reducing visibility when overriding a method causes?", "Always allowed", "Compile-time error", "Runtime warning only", "Method is removed", 1],
+["Which statement about HashMap is correct?", "Allows no null keys", "Stores sorted keys", "Allows one null key", "Allows duplicate keys", 2],
+["Which keyword invokes a superclass constructor?", "this", "super", "parent", "base", 1],
+["Checked exceptions must generally be?", "Caught or declared", "Ignored", "Only errors", "Never thrown", 0],
+["Which interface can return a value through Future?", "Runnable", "Callable", "Comparable", "Cloneable", 1],
+["What does polymorphism allow?", "One interface, multiple implementations", "Only one object", "No inheritance", "Only primitive types", 0],
+["Which keyword explicitly throws an exception?", "throws", "throw", "catch", "finally", 1],
+["Which access level is most restrictive?", "public", "protected", "private", "package", 2],
+["A static method belongs primarily to the?", "Instance", "Class", "Constructor call only", "Package object", 1]
+]
+},
+
+Python: {
+Easy: [
+["Which symbol starts a Python comment?", "#", "//", "<!--", "**", 0],
+["Which keyword defines a function?", "func", "def", "function", "make", 1],
+["Which type stores True or False?", "str", "list", "bool", "dict", 2],
+["What is 2 ** 3?", "6", "8", "9", "5", 1],
+["Which brackets create a list?", "()", "[]", "{}", "<>", 1],
+["Which function displays output?", "input()", "print()", "show()", "write()", 1],
+["Which type stores text?", "int", "str", "float", "bool", 1],
+["Which keyword starts a conditional?", "when", "if", "check", "case", 1],
+["Which method adds an item to a list?", "push()", "append()", "insertEnd()", "addLast()", 1],
+["What is 10 // 3?", "3", "3.33", "1", "4", 0]
+],
+Medium: [
+["Which data structure stores key-value pairs?", "List", "Tuple", "Dictionary", "Set", 2],
+["What does len([2,4,6]) return?", "2", "3", "6", "12", 1],
+["Which loop iterates over a sequence?", "for", "switch", "case", "repeat-until", 0],
+["What is [1,2,3][1]?", "1", "2", "3", "Error", 1],
+["Which keyword handles an exception?", "catch", "except", "error", "rescue", 1],
+["Which expression creates a tuple?", "[1,2]", "(1,2)", "{1:2}", "{1,2}", 1],
+["What does range(3) produce when iterated?", "1,2,3", "0,1,2", "0,1,2,3", "3 only", 1],
+["Which keyword imports a module?", "include", "using", "import", "module", 2],
+["What is 7 % 3?", "1", "2", "3", "0", 0],
+["Which value represents no value?", "None", "Null", "Void", "Empty", 0]
+],
+Hard: [
+["What is a list comprehension used for?", "Building lists compactly", "Declaring classes only", "Handling files only", "Ending a loop", 0],
+["Which keyword creates a generator function?", "yield", "returning", "generate", "async only", 0],
+["What is __init__ used for?", "Initialize an instance", "Delete an object", "Import a module", "Print an object", 0],
+["What is a decorator commonly used for?", "Wrapping another callable", "Creating a list only", "Running a loop only", "Writing a comment", 0],
+["What does a shallow copy generally do?", "Copies container but shares nested references", "Copies every nested object", "Copies names only", "Copies nothing", 0],
+["Which statement about tuples is correct?", "They are immutable", "They are always sorted", "They allow no duplicates", "Numbers only", 0],
+["What does try-except help with?", "Handling exceptions", "Defining variables", "Creating loops", "Importing packages", 0],
+["Which keyword defines a class?", "object", "class", "typeclass", "struct", 1],
+["What does *args commonly collect?", "Extra positional arguments", "Keyword arguments only", "Only strings", "Return values", 0],
+["Which built-in returns index and value while iterating?", "zip()", "enumerate()", "range()", "items()", 1]
+]
+},
+
+GK: {
+Easy: [
+["What is the capital of India?", "Mumbai", "New Delhi", "Chennai", "Kolkata", 1],
+["Which planet is called the Red Planet?", "Venus", "Mars", "Jupiter", "Saturn", 1],
+["What is the national animal of India?", "Lion", "Elephant", "Bengal Tiger", "Horse", 2],
+["How many days are in a leap year?", "365", "366", "364", "360", 1],
+["Which is the largest ocean?", "Indian", "Atlantic", "Pacific", "Arctic", 2],
+["Which gas do humans need to breathe?", "Oxygen", "Helium", "Hydrogen", "Neon", 0],
+["How many colours are traditionally in a rainbow?", "5", "6", "7", "8", 2],
+["Which is Earth's natural satellite?", "Sun", "Moon", "Mars", "Venus", 1],
+["Which festival is known as the festival of lights?", "Holi", "Diwali", "Eid", "Pongal", 1],
+["What is the currency of India?", "Dollar", "Rupee", "Euro", "Yen", 1]
+],
+Medium: [
+["Which Indian institution issues currency notes?", "RBI", "SBI", "SEBI", "ISRO", 0],
+["Where is the UN headquarters?", "London", "Paris", "New York", "Rome", 2],
+["Which is the largest continent?", "Africa", "Asia", "Europe", "Australia", 1],
+["Who wrote India's national anthem?", "Rabindranath Tagore", "Bankim Chandra", "Sarojini Naidu", "Premchand", 0],
+["Which organ pumps blood?", "Lungs", "Liver", "Heart", "Kidney", 2],
+["Which layer protects Earth from much UV radiation?", "Ozone layer", "Core", "Mantle", "Troposphere", 0],
+["Which is the longest river in India by length within India?", "Ganga", "Yamuna", "Godavari", "Narmada", 0],
+["What is the chemical symbol for gold?", "Ag", "Au", "Fe", "Go", 1],
+["Which organisation is India's space agency?", "DRDO", "ISRO", "BARC", "CSIR", 1],
+["Which is the smallest continent?", "Europe", "Australia", "South America", "Antarctica", 1]
+],
+Hard: [
+["Which constitutional article deals with remedies?", "Article 14", "Article 21", "Article 32", "Article 44", 2],
+["What is the SI unit of capacitance?", "Henry", "Farad", "Tesla", "Weber", 1],
+["Which Indian mission soft-landed near the Moon's south polar region in 2023?", "Chandrayaan-1", "Chandrayaan-2", "Chandrayaan-3", "Mangalyaan", 2],
+["What converts atmospheric nitrogen into usable compounds?", "Nitrogen fixation", "Evaporation", "Transpiration", "Condensation", 0],
+["Who was India's first woman President?", "Pratibha Patil", "Indira Gandhi", "Droupadi Murmu", "Sarojini Naidu", 0],
+["Which is the upper house of Parliament?", "Lok Sabha", "Rajya Sabha", "Vidhan Sabha", "Gram Sabha", 1],
+["Which vitamin is produced in skin with sunlight?", "Vitamin A", "Vitamin B12", "Vitamin C", "Vitamin D", 3],
+["Which gas is most abundant in Earth's atmosphere?", "Oxygen", "Nitrogen", "Carbon dioxide", "Argon", 1],
+["Which instrument measures atmospheric pressure?", "Barometer", "Ammeter", "Hygrometer", "Caliper", 0],
+["What is the basic unit of heredity?", "Cell", "Gene", "Tissue", "Organ", 1]
+]
+},
+
+Reasoning: {
+Easy: [
+["Find the next number: 1, 3, 5, ?", "6", "7", "8", "9", 1],
+["Which one is different?", "Apple", "Mango", "Carrot", "Banana", 2],
+["Facing North, turn right. Which direction?", "West", "East", "South", "North", 1],
+["Complete: 5, 10, 15, ?", "18", "20", "25", "30", 1],
+["Find the next number: 2, 4, 6, ?", "7", "8", "9", "10", 1],
+["Which one is different?", "Dog", "Cat", "Cow", "Rose", 3],
+["Facing East, turn left. Which direction?", "North", "South", "West", "East", 0],
+["Complete: 10, 20, 30, ?", "35", "40", "45", "50", 1],
+["Find the next number: 3, 6, 9, ?", "10", "11", "12", "15", 2],
+["Which one is different?", "Circle", "Square", "Triangle", "Potato", 3]
+],
+Medium: [
+["Find the next number: 3, 6, 12, 24, ?", "36", "42", "48", "30", 2],
+["If CAT is coded as DBU, DOG is coded as?", "EPH", "CNG", "EOG", "FPH", 0],
+["Ravi is taller than Sam. Sam is taller than Ali. Who is shortest?", "Ravi", "Sam", "Ali", "Cannot say", 2],
+["Find the next number: 2, 6, 12, 20, ?", "26", "30", "28", "32", 1],
+["Find the next number: 4, 8, 16, 32, ?", "48", "56", "64", "72", 2],
+["If SUN becomes TVO, how does CAT become?", "DBU", "CBU", "DBT", "EBU", 0],
+["A is older than B. B is older than C. Who is youngest?", "A", "B", "C", "Cannot say", 2],
+["Complete: 1, 4, 9, 16, ?", "20", "25", "30", "36", 1],
+["Find the next number: 7, 14, 28, ?", "35", "42", "56", "63", 2],
+["If today is Monday, what day is after two days?", "Tuesday", "Wednesday", "Thursday", "Friday", 1]
+],
+Hard: [
+["Find the next number: 2, 6, 12, 20, 30, ?", "36", "40", "42", "44", 2],
+["All roses are flowers. Which conclusion is certain?", "All roses fade quickly", "All roses are flowers", "No flowers are roses", "All flowers are roses", 1],
+["A is brother of B; B is sister of C. A is C's?", "Brother", "Sister", "Father", "Cannot say", 0],
+["Walk 5 km north, 3 km east, then 5 km south. Final position?", "3 km east", "3 km west", "5 km north", "Starting point", 0],
+["Find the next number: 1, 4, 9, 16, 25, ?", "30", "36", "40", "49", 1],
+["If all pens are tools and some tools are blue, which is certain?", "All pens are blue", "Some pens are blue", "All pens are tools", "No tools are pens", 2],
+["A is taller than B; C is taller than A. Who is tallest?", "A", "B", "C", "Cannot say", 2],
+["Complete: 2, 3, 5, 8, 12, ?", "15", "16", "17", "18", 2],
+["If EAST is coded as FBTU, WEST is coded as?", "XFTU", "XFTV", "VDRS", "XEST", 0],
+["A person walks south, then turns left. Which direction now?", "East", "West", "North", "South", 1]
+]
+},
+
+Maths: {
+Easy: [
+["What is 5 + 3?", "8", "7", "9", "10", 0],
+["What is 10 - 4?", "5", "6", "7", "8", 1],
+["What is 3 × 4?", "7", "12", "14", "16", 1],
+["What is 20 divided by 5?", "2", "3", "4", "5", 2],
+["What is 8 + 7?", "14", "15", "16", "17", 1],
+["What is 15 - 6?", "8", "9", "10", "11", 1],
+["What is 6 × 3?", "15", "18", "21", "24", 1],
+["What is 36 divided by 6?", "5", "6", "7", "8", 1],
+["What is 12 + 9?", "19", "20", "21", "22", 2],
+["What is 25 - 10?", "10", "15", "20", "25", 1]
+],
+Medium: [
+["What is 20% of 100?", "10", "20", "25", "30", 1],
+["Average of 10, 20 and 30?", "15", "20", "25", "30", 1],
+["Cost ₹50, selling price ₹70. Profit?", "₹10", "₹20", "₹30", "₹40", 1],
+["Simplify ratio 10:20.", "1:2", "2:1", "1:3", "3:2", 0],
+["What is 15% of 200?", "20", "25", "30", "35", 2],
+["Average of 4, 8 and 12?", "6", "8", "10", "12", 1],
+["If x + 5 = 12, x = ?", "5", "6", "7", "8", 2],
+["Simplify ratio 12:18.", "2:3", "3:2", "1:2", "4:5", 0],
+["What is 25% of 80?", "10", "15", "20", "25", 2],
+["A product costs ₹100 and sells for ₹120. Profit percentage?", "10%", "15%", "20%", "25%", 2]
+],
+Hard: [
+["25% increase on 100 gives?", "115", "120", "125", "130", 2],
+["Bought for ₹200, sold for ₹250. Profit percentage?", "20%", "25%", "30%", "50%", 1],
+["If 5x = 45, what is x?", "5", "8", "9", "10", 2],
+["Ratio 2:3, total 25. Smaller number?", "5", "10", "15", "20", 1],
+["Simple interest on ₹1000 at 10% for 2 years?", "₹100", "₹150", "₹200", "₹250", 2],
+["If x/4 = 6, x = ?", "10", "20", "24", "30", 2],
+["A 20% discount on ₹500 gives selling price?", "₹350", "₹400", "₹450", "₹480", 1],
+["If 3 workers finish in 6 days, total worker-days?", "9", "12", "18", "24", 2],
+["What is 15 squared?", "125", "200", "225", "250", 2],
+["A number increased by 10% becomes 220. Original number?", "180", "190", "200", "210", 2]
+]
+}
+};
+
+function buildQuestions() {
+    const bank = banks[category]?.[level];
+
+    if (!bank) {
+        alert("Invalid subject or difficulty. Please login again.");
+        location.replace("/index.html");
+        return [];
+    }
+
+    // Use 20 questions: the selected 10-question bank repeats twice.
+    return Array.from({ length: 20 }, (_, i) => {
+        const item = bank[i % bank.length];
+        return mcq(
+            item[0],
+            [item[1], item[2], item[3], item[4]],
+            item[5]
+        );
+    });
+}
+
+questions = buildQuestions();
+
+const questionBox = document.getElementById("questions");
+
+questions.forEach((item, index) => {
+    const section = document.createElement("section");
+    section.className = "question";
+
+    const heading = document.createElement("h3");
+    heading.textContent = (index + 1) + ". " + item.q;
+    section.appendChild(heading);
+
+    item.options.forEach((text, optIndex) => {
+        const label = document.createElement("label");
+        label.className = "option";
+
+        const radio = document.createElement("input");
+        radio.type = "radio";
+        radio.name = "q" + index;
+        radio.value = optIndex;
+
+        label.appendChild(radio);
+        label.appendChild(document.createTextNode(" " + text));
+        section.appendChild(label);
+    });
+
+    questionBox.appendChild(section);
+});
+
+function updateTimer() {
+    const m = Math.floor(secondsLeft / 60);
+    const s = secondsLeft % 60;
+
+    document.getElementById("timer").textContent =
+        String(m).padStart(2, "0") + ":" +
+        String(s).padStart(2, "0");
+
+    if (secondsLeft <= 0) {
+        clearInterval(timerInterval);
+        finishExam("Time limit reached. Exam submitted automatically.");
+    } else {
+        secondsLeft--;
+    }
+}
+
+timerInterval = setInterval(updateTimer, 1000);
+updateTimer();
+
+document.getElementById("examForm").addEventListener("submit", function(e) {
+    e.preventDefault();
+    finishExam("Exam submitted by student.");
+});
+
+document.addEventListener("visibilitychange", function() {
+    if (document.hidden && !submitted) {
+        finishExam(
+            "Exam auto-submitted because you switched tabs or left the exam page."
+        );
+    }
+});
+
+async function saveResult(resultData) {
+    const response = await fetch("/api/results", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(resultData)
+    });
+
+    const responseText = await response.text();
+
+    if (!response.ok) {
+        throw new Error("HTTP " + response.status + ": " + responseText);
+    }
+
+    return responseText;
+}
+
+async function finishExam(reason) {
+    if (submitted) return;
+
+    submitted = true;
+    clearInterval(timerInterval);
+
+    const timeTaken = Math.min(
+        mins * 60,
+        Math.floor((Date.now() - startTime) / 1000)
+    );
+
+    let score = 0;
+
+    questions.forEach((item, index) => {
+        const chosen = document.querySelector(
+            'input[name="q' + index + '"]:checked'
+        );
+
+        if (chosen && Number(chosen.value) === item.answer) {
+            score++;
+        }
+    });
+
+    const total = questions.length;
+    const percent = total ? (score / total) * 100 : 0;
+
+    document.querySelectorAll("#examForm input").forEach(el => {
+        el.disabled = true;
+    });
+
+    document.getElementById("submitBtn").disabled = true;
+    document.getElementById("examArea").style.display = "none";
+    document.getElementById("result").style.display = "block";
+
+    document.getElementById("resultName").textContent =
+        "Student: " + name;
+    document.getElementById("resultCategory").textContent =
+        "Subject: " + (categoryNames[category] || category);
+    document.getElementById("resultDifficulty").textContent =
+        "Difficulty: " + level;
+    document.getElementById("resultScore").textContent =
+        "Score: " + score + " / " + total;
+    document.getElementById("resultPercentage").textContent =
+        "Percentage: " + percent.toFixed(2) + "%";
+
+    const mm = Math.floor(timeTaken / 60);
+    const ss = timeTaken % 60;
+
+    document.getElementById("resultTime").textContent =
+        "Time taken: " + mm + " min " + ss + " sec";
+    document.getElementById("resultReason").textContent = reason;
+
+    let advice = "";
+
+    if (level === "Easy" && timeTaken > 240) {
+        advice = "You took a long time on basic questions. Practise simple questions to improve your speed.";
+    } else if (level === "Medium" && timeTaken > 480) {
+        advice = "Practise moderate-level questions and improve your problem-solving speed.";
+    } else if (level === "Hard" && timeTaken > 720) {
+        advice = "Practise challenging questions regularly and improve your time management.";
+    } else if (percent < 50) {
+        advice = "Review the basic concepts in this subject and practise more MCQs.";
+    } else if (percent < 80) {
+        advice = "Good effort. Review incorrect answers and practise regularly.";
+    } else {
+        advice = "Excellent performance! Keep practising to maintain your accuracy.";
+    }
+
+    document.getElementById("suggestion").textContent = advice;
+
+    sessionStorage.setItem("examScore", String(score));
+    sessionStorage.setItem("examTotal", String(total));
+    sessionStorage.setItem("examPercentage", percent.toFixed(2));
+    sessionStorage.setItem("examTimeTaken", String(timeTaken));
+    sessionStorage.setItem("examReason", reason);
+
+    const saveStatus = document.getElementById("saveStatus");
+    saveStatus.textContent = "Saving result to database...";
+
+    try {
+        const resultData = {
+            studentName: name,
+            studentEmail: email,
+            category: category,
+            difficulty: level,
+            score: score,
+            totalQuestions: total,
+            percentage: Number(percent.toFixed(2)),
+            timeTakenSeconds: timeTaken,
+            submissionReason: reason
+        };
+
+        const responseText = await saveResult(resultData);
+
+        console.log("Database save response:", responseText);
+        saveStatus.textContent = "Result saved successfully in the database.";
+
+    } catch (error) {
+        console.error("Result save error:", error);
+        saveStatus.textContent =
+            "Database save failed: " + error.message;
+    }
+}
+</script>
+
+</body>
+</html>
